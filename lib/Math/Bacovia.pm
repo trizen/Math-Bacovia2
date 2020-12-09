@@ -4,7 +4,7 @@ use 5.014;
 use strict;
 use warnings;
 
-use List::UtilsBy::XS qw();
+use List::UtilsBy qw();
 use Class::Multimethods qw();
 use Math::AnyNum qw();
 
@@ -533,7 +533,7 @@ sub acsch {
 sub simple {
     my ($x) = @_;
     (
-     List::UtilsBy::XS::min_by {
+     List::UtilsBy::min_by {
          length($_->pretty)
      }
      ($x->alternatives)

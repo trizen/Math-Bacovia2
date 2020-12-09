@@ -142,23 +142,25 @@ sub numeric {
 sub pretty {
     my ($x) = @_;
 
-    my $minuend    = $x->{minuend}->pretty();
-    my $subtrahend = $x->{subtrahend}->pretty();
+    $x->{_pretty} //= do {
+        my $minuend    = $x->{minuend}->pretty();
+        my $subtrahend = $x->{subtrahend}->pretty();
 
-    if ($minuend eq '0') {
-        return "(-$subtrahend)";
-    }
-
-    if ($subtrahend eq '0') {
-        return $minuend;
-    }
-
-    "($minuend - $subtrahend)";
+        if ($minuend eq '0') {
+            "(-$subtrahend)";
+        }
+        elsif ($subtrahend eq '0') {
+            $minuend;
+        }
+        else {
+            "($minuend - $subtrahend)";
+        }
+    };
 }
 
 sub stringify {
     my ($x) = @_;
-    "Difference(" . $x->{minuend}->stringify() . ', ' . $x->{subtrahend}->stringify() . ")";
+    $x->{_str} //= "Difference(" . $x->{minuend}->stringify() . ', ' . $x->{subtrahend}->stringify() . ")";
 }
 
 #
@@ -166,32 +168,32 @@ sub stringify {
 #
 
 sub alternatives {
-    my ($x) = @_;
+    my ($self) = @_;
 
-    my @first  = $x->{minuend}->alternatives;
-    my @second = $x->{subtrahend}->alternatives;
+    $self->{_alt} //= do {
+        my @first  = $self->{minuend}->alternatives;
+        my @second = $self->{subtrahend}->alternatives;
 
-    my @alt;
-    foreach my $minuend (@first) {
-        foreach my $subtrahend (@second) {
-            if ($subtrahend == $Math::Bacovia::ZERO) {
-                push @alt, $minuend;
-            }
-            elsif ($minuend == $Math::Bacovia::ZERO) {
-                push @alt, $subtrahend->neg;
-            }
-            else {
-                my $expr = $minuend - $subtrahend;
-                push @alt, $expr;
-
-                if (ref($expr) ne __PACKAGE__) {
+        my @alt;
+        foreach my $minuend (@first) {
+            foreach my $subtrahend (@second) {
+                if ($subtrahend == $Math::Bacovia::ZERO) {
+                    push @alt, $minuend;
+                }
+                elsif ($minuend == $Math::Bacovia::ZERO) {
+                    push @alt, $subtrahend->neg;
+                }
+                else {
                     push @alt, __PACKAGE__->new($minuend, $subtrahend);
+                    ##push @alt, $minuend - $subtrahend;      # better, but slower...
                 }
             }
         }
-    }
 
-    List::UtilsBy::XS::uniq_by { $_->stringify } @alt;
+        [List::UtilsBy::uniq_by { $_->stringify } @alt];
+    };
+
+    @{$self->{_alt}};
 }
 
 1;

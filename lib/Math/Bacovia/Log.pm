@@ -53,11 +53,13 @@ sub numeric {
 }
 
 sub pretty {
-    "log(" . $_[0]->{value}->pretty() . ")";
+    my ($x) = @_;
+    $x->{_pretty} //= "log(" . $x->{value}->pretty() . ")";
 }
 
 sub stringify {
-    "Log(" . $_[0]->{value}->stringify() . ")";
+    my ($x) = @_;
+    $x->{_str} //= "Log(" . $x->{value}->stringify() . ")";
 }
 
 #
@@ -65,18 +67,22 @@ sub stringify {
 #
 
 sub alternatives {
-    my ($x) = @_;
+    my ($self) = @_;
 
-    my @alt;
-    foreach my $x ($x->{value}->alternatives) {
-        push @alt, __PACKAGE__->new($x);
+    $self->{_alt} //= do {
+        my @alt;
+        foreach my $x ($self->{value}->alternatives) {
+            push @alt, __PACKAGE__->new($x);
 
-        if (ref($x) eq 'Math::Bacovia::Exp') {
-            push @alt, $x->{value};
+            if (ref($x) eq 'Math::Bacovia::Exp') {
+                push @alt, $x->{value};
+            }
         }
-    }
 
-    List::UtilsBy::XS::uniq_by { $_->stringify } @alt;
+        [List::UtilsBy::uniq_by { $_->stringify } @alt];
+    };
+
+    @{$self->{_alt}};
 }
 
 1;

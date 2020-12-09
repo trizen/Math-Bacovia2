@@ -43,7 +43,7 @@ sub bernoulli_polynomials {
 
 sub faulhaber_s_formula_2 {
     my ($p, $n) = @_;
-    1 + Fraction( (bernoulli_polynomials($p + 1, $n + 1) - bernoulli_polynomials($p + 1, 1)),  ($p + 1));
+    1 + Fraction((bernoulli_polynomials($p + 1, $n + 1) - bernoulli_polynomials($p + 1, 1)), ($p + 1));
 }
 
 foreach my $i (0 .. 5) {

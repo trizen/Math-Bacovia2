@@ -68,12 +68,12 @@ sub numeric {
 
 sub pretty {
     my ($x) = @_;
-    '(' . join(' + ', $x->{first}->pretty, $x->{second}->pretty) . ')';
+    $x->{_pretty} //= '(' . join(' + ', $x->{first}->pretty, $x->{second}->pretty) . ')';
 }
 
 sub stringify {
     my ($x) = @_;
-    'Sum(' . join(', ', $x->{first}->stringify, $x->{second}->stringify) . ')';
+    $x->{_str} //= 'Sum(' . join(', ', $x->{first}->stringify, $x->{second}->stringify) . ')';
 }
 
 #
@@ -97,32 +97,36 @@ Class::Multimethods::multimethod eq => (__PACKAGE__, 'Math::Bacovia') => sub {
 #
 
 sub alternatives {
-    my ($x) = @_;
+    my ($self) = @_;
 
-    my @first  = $x->{first}->alternatives;
-    my @second = $x->{second}->alternatives;
+    $self->{_alt} //= do {
 
-    my @alt;
-    foreach my $first (@first) {
-        foreach my $second (@second) {
-            if ($second == $Math::Bacovia::ZERO) {
-                push @alt, $first;
-            }
-            elsif ($first == $Math::Bacovia::ZERO) {
-                push @alt, $second;
-            }
-            else {
-                my $expr = $first + $second;
-                push @alt, $expr;
+        my @first  = $self->{first}->alternatives;
+        my @second = $self->{second}->alternatives;
 
-                if (ref($expr) ne __PACKAGE__) {
-                    push @alt, __PACKAGE__->new($first, $second);
+        my @alt;
+        foreach my $first (@first) {
+            foreach my $second (@second) {
+                if ($second == $Math::Bacovia::ZERO) {
+                    push @alt, $first;
+                }
+                elsif ($first == $Math::Bacovia::ZERO) {
+                    push @alt, $second;
+                }
+                else {
+                    my $expr = $first + $second;
+                    push @alt, $expr;
+
+                    if (ref($expr) ne __PACKAGE__) {
+                        push @alt, __PACKAGE__->new($first, $second);
+                    }
                 }
             }
         }
-    }
 
-    List::UtilsBy::XS::uniq_by { $_->stringify } @alt;
+        [List::UtilsBy::uniq_by { $_->stringify } @alt];
+    };
+    @{$self->{_alt}};
 }
 
 1;

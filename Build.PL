@@ -1,4 +1,3 @@
-#!/usr/bin/perl
 
 use utf8;
 use 5.006;
@@ -9,9 +8,21 @@ use Module::Build;
 my $builder = Module::Build->new(
      module_name        => 'Math::Bacovia',
      license            => 'artistic_2',
-     dist_author        => q{Daniel Șuteu <trizenx@gmail.com>},
+     dist_author        => q<Daniel Șuteu <trizen@cpan.org>>,
      dist_version_from  => 'lib/Math/Bacovia.pm',
      release_status     => 'stable',
+
+     dynamic_config    => 0,
+     extra_manify_args => { utf8 => 1 },
+
+     meta_merge => {
+                   resources => {
+                                 bugtracker => "https://github.com/trizen/Math-Bacovia2/issues",
+                                 homepage   => "https://github.com/trizen/Math-Bacovia2",
+                                 repository => "https://github.com/trizen/Math-Bacovia2",
+                                },
+                  },
+
      configure_requires => {
                             'Module::Build' => 0,
                            },
@@ -21,7 +32,7 @@ my $builder = Module::Build->new(
      requires => {
                   'perl'                => 5.014,
                   'Math::AnyNum'        => 0.01,
-                  'List::UtilsBy::XS'   => 0,
+                  'List::UtilsBy'       => 0,
                   'Class::Multimethods' => 1.70,
                  },
      add_to_cleanup     => ['Math-Bacovia-*'],

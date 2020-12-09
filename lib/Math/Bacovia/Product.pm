@@ -69,12 +69,12 @@ sub numeric {
 
 sub pretty {
     my ($x) = @_;
-    '(' . join(' * ', $x->{first}->pretty, $x->{second}->pretty) . ')';
+    $x->{_pretty} //= '(' . join(' * ', $x->{first}->pretty, $x->{second}->pretty) . ')';
 }
 
 sub stringify {
     my ($x) = @_;
-    'Product(' . join(', ', $x->{first}->stringify, $x->{second}->stringify) . ')';
+    $x->{_str} //= 'Product(' . join(', ', $x->{first}->stringify, $x->{second}->stringify) . ')';
 }
 
 #
@@ -99,46 +99,51 @@ Class::Multimethods::multimethod eq => (__PACKAGE__, '*') => sub {
 #
 
 sub alternatives {
-    my ($x) = @_;
+    my ($self) = @_;
 
-    my @first  = $x->{first}->alternatives;
-    my @second = $x->{second}->alternatives;
+    $self->{_alt} //= do {
 
-    my @alt;
-    foreach my $first (@first) {
-        foreach my $second (@second) {
-            if (   $first == $Math::Bacovia::ZERO
-                or $second == $Math::Bacovia::ZERO) {
-                push @alt, $Math::Bacovia::ZERO;
-            }
-            elsif (    $first == $Math::Bacovia::ONE
-                   and $second == $Math::Bacovia::ONE) {
-                push @alt, $Math::Bacovia::ONE;
-            }
-            elsif ($first == $Math::Bacovia::ONE) {
-                push @alt, $second;
-            }
-            elsif ($second == $Math::Bacovia::ONE) {
-                push @alt, $first;
-            }
-            elsif ($first == $Math::Bacovia::MONE) {
-                push @alt, $second->neg;
-            }
-            elsif ($second == $Math::Bacovia::MONE) {
-                push @alt, $first->neg;
-            }
-            else {
-                my $expr = $first * $second;
-                push @alt, $expr;
+        my @first  = $self->{first}->alternatives;
+        my @second = $self->{second}->alternatives;
 
-                if (ref($expr) ne __PACKAGE__) {
-                    push @alt, __PACKAGE__->new($first, $second);
+        my @alt;
+        foreach my $first (@first) {
+            foreach my $second (@second) {
+                if (   $first == $Math::Bacovia::ZERO
+                    or $second == $Math::Bacovia::ZERO) {
+                    push @alt, $Math::Bacovia::ZERO;
+                }
+                elsif (    $first == $Math::Bacovia::ONE
+                       and $second == $Math::Bacovia::ONE) {
+                    push @alt, $Math::Bacovia::ONE;
+                }
+                elsif ($first == $Math::Bacovia::ONE) {
+                    push @alt, $second;
+                }
+                elsif ($second == $Math::Bacovia::ONE) {
+                    push @alt, $first;
+                }
+                elsif ($first == $Math::Bacovia::MONE) {
+                    push @alt, $second->neg;
+                }
+                elsif ($second == $Math::Bacovia::MONE) {
+                    push @alt, $first->neg;
+                }
+                else {
+                    my $expr = $first * $second;
+                    push @alt, $expr;
+
+                    if (ref($expr) ne __PACKAGE__) {
+                        push @alt, __PACKAGE__->new($first, $second);
+                    }
                 }
             }
         }
-    }
 
-    List::UtilsBy::XS::uniq_by { $_->stringify } @alt;
+        [List::UtilsBy::uniq_by { $_->stringify } @alt];
+    };
+
+    @{$self->{_alt}};
 }
 
 1;

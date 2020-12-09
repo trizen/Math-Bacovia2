@@ -160,19 +160,23 @@ sub numeric {
 sub pretty {
     my ($x) = @_;
 
-    my $num = $x->{num}->pretty();
-    my $den = $x->{den}->pretty();
+    $x->{_pretty} //= do {
 
-    if ($den eq '1') {
-        return $num;
-    }
+        my $num = $x->{num}->pretty();
+        my $den = $x->{den}->pretty();
 
-    "($num/$den)";
+        if ($den eq '1') {
+            $num;
+        }
+        else {
+            "($num/$den)";
+        }
+    };
 }
 
 sub stringify {
     my ($x) = @_;
-    "Fraction(" . $x->{num}->stringify() . ', ' . $x->{den}->stringify() . ")";
+    $x->{_str} //= "Fraction(" . $x->{num}->stringify() . ', ' . $x->{den}->stringify() . ")";
 }
 
 #
@@ -180,32 +184,32 @@ sub stringify {
 #
 
 sub alternatives {
-    my ($x) = @_;
+    my ($self) = @_;
 
-    my @a_num = $x->{num}->alternatives;
-    my @a_den = $x->{den}->alternatives;
+    $self->{_alt} //= do {
 
-    my @alt;
-    foreach my $num (@a_num) {
-        foreach my $den (@a_den) {
-            if ($den == $Math::Bacovia::ONE) {
-                push @alt, $num;
-            }
-            elsif ($num == $Math::Bacovia::ONE) {
-                push @alt, $den->inv;
-            }
-            else {
-                my $expr = $num / $den;
-                push @alt, $expr;
+        my @a_num = $self->{num}->alternatives;
+        my @a_den = $self->{den}->alternatives;
 
-                if (ref($expr) ne __PACKAGE__) {
+        my @alt;
+        foreach my $num (@a_num) {
+            foreach my $den (@a_den) {
+                if ($den == $Math::Bacovia::ONE) {
+                    push @alt, $num;
+                }
+                elsif ($num == $Math::Bacovia::ONE) {
+                    push @alt, $den->inv;
+                }
+                else {
                     push @alt, __PACKAGE__->new($num, $den);
+                    ##push @alt, $num / $den;         # better, but slower...
                 }
             }
         }
-    }
 
-    List::UtilsBy::XS::uniq_by { $_->stringify } @alt;
+        [List::UtilsBy::uniq_by { $_->stringify } @alt];
+    };
+    @{$self->{_alt}};
 }
 
 1;
