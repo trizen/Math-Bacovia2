@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 
 use utf8;
 use 5.006;
@@ -12,10 +13,10 @@ my $builder = Module::Build->new(
      dist_version_from  => 'lib/Math/Bacovia.pm',
      release_status     => 'stable',
 
-     dynamic_config    => 0,
-     extra_manify_args => { utf8 => 1 },
+    dynamic_config    => 0,
+    extra_manify_args => { utf8 => 1 },
 
-     meta_merge => {
+    meta_merge => {
                    resources => {
                                  bugtracker => "https://github.com/trizen/Math-Bacovia2/issues",
                                  homepage   => "https://github.com/trizen/Math-Bacovia2",
@@ -31,7 +32,7 @@ my $builder = Module::Build->new(
                        },
      requires => {
                   'perl'                => 5.014,
-                  'Math::AnyNum'        => 0.01,
+                  'Math::AnyNum'        => 0.14,
                   'List::UtilsBy'       => 0,
                   'Class::Multimethods' => 1.70,
                  },

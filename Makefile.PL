@@ -8,7 +8,7 @@ WriteMakefile
   'PREREQ_PM' => {
                    'Class::Multimethods' => '1.7',
                    'List::UtilsBy' => 0,
-                   'Math::AnyNum' => '0.01',
+                   'Math::AnyNum' => '0.14',
                    'Test::More' => 0
                  },
   'INSTALLDIRS' => 'site',

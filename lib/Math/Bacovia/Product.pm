@@ -3,21 +3,23 @@ package Math::Bacovia::Product;
 use 5.014;
 use warnings;
 
-use Class::Multimethods;
+use Class::Multimethods qw();
 use parent qw(Math::Bacovia);
+
+our $VERSION = $Math::Bacovia::VERSION;
 
 sub new {
     my ($class, $first, $second) = @_;
 
     if (defined($first)) {
-        Math::Bacovia::Utils::check_type(\$first);
+        Math::Bacovia::_check_type(\$first);
     }
     else {
         $first = $Math::Bacovia::ONE;
     }
 
     if (defined($second)) {
-        Math::Bacovia::Utils::check_type(\$second);
+        Math::Bacovia::_check_type(\$second);
     }
     else {
         $second = $Math::Bacovia::ONE;
@@ -48,14 +50,14 @@ Class::Multimethods::multimethod div => (__PACKAGE__, __PACKAGE__) => sub {
     __PACKAGE__->new($x->{first} / $y->{first}, $x->{second} / $y->{second});
 };
 
-Class::Multimethods::multimethod pow => (__PACKAGE__, 'Math::Bacovia') => sub {
-    my ($x, $y) = @_;
-    __PACKAGE__->new($x->{first}**$y, $x->{second}**$y);
-};
+#~ Class::Multimethods::multimethod pow => (__PACKAGE__, 'Math::Bacovia') => sub {
+#~ my ($x, $y) = @_;
+#~ __PACKAGE__->new($x->{first}**$y, $x->{second}**$y);
+#~ };
 
 sub inv {
     my ($x) = @_;
-    __PACKAGE__->new($x->{first}->inv, $x->{second}->inv);
+    $x->{_inv} //= __PACKAGE__->new($x->{first}->inv, $x->{second}->inv);
 }
 
 #
@@ -64,7 +66,7 @@ sub inv {
 
 sub numeric {
     my ($x) = @_;
-    $x->{first}->numeric * $x->{second}->numeric;
+    $x->{_num} //= $x->{first}->numeric * $x->{second}->numeric;
 }
 
 sub pretty {
@@ -84,14 +86,19 @@ sub stringify {
 Class::Multimethods::multimethod eq => (__PACKAGE__, __PACKAGE__) => sub {
     my ($x, $y) = @_;
 
-    ($x->{first} == $y->{first} and $x->{second} == $y->{second})
+#<<<
+         ($x->{first} == $y->{first}  and $x->{second} == $y->{second})
       || ($x->{first} == $y->{second} and $x->{second} == $y->{first});
+#>>>
 };
 
 Class::Multimethods::multimethod eq => (__PACKAGE__, '*') => sub {
     my ($x, $y) = @_;
-    ($x->{first} == $Math::Bacovia::ONE and $x->{second} == $y)
-      || ($x->{second} == $Math::Bacovia::ONE and $x->{first} == $y);
+
+#<<<
+         ($x->{first}  == $Math::Bacovia::ONE and $x->{second} == $y)
+      || ($x->{second} == $Math::Bacovia::ONE and $x->{first}  == $y);
+#>>>
 };
 
 #
@@ -99,43 +106,46 @@ Class::Multimethods::multimethod eq => (__PACKAGE__, '*') => sub {
 #
 
 sub alternatives {
-    my ($self) = @_;
+    my ($self, %opt) = @_;
 
     $self->{_alt} //= do {
 
-        my @first  = $self->{first}->alternatives;
-        my @second = $self->{second}->alternatives;
+        my @first  = $self->{first}->alternatives(%opt);
+        my @second = $self->{second}->alternatives(%opt);
 
         my @alt;
         foreach my $first (@first) {
             foreach my $second (@second) {
-                if (   $first == $Math::Bacovia::ZERO
-                    or $second == $Math::Bacovia::ZERO) {
-                    push @alt, $Math::Bacovia::ZERO;
-                }
-                elsif (    $first == $Math::Bacovia::ONE
-                       and $second == $Math::Bacovia::ONE) {
-                    push @alt, $Math::Bacovia::ONE;
-                }
-                elsif ($first == $Math::Bacovia::ONE) {
-                    push @alt, $second;
-                }
-                elsif ($second == $Math::Bacovia::ONE) {
-                    push @alt, $first;
-                }
-                elsif ($first == $Math::Bacovia::MONE) {
-                    push @alt, $second->neg;
-                }
-                elsif ($second == $Math::Bacovia::MONE) {
-                    push @alt, $first->neg;
-                }
-                else {
-                    my $expr = $first * $second;
-                    push @alt, $expr;
 
-                    if (ref($expr) ne __PACKAGE__) {
-                        push @alt, __PACKAGE__->new($first, $second);
+                if (ref($first) eq 'Math::Bacovia::Number') {
+                    if ($first->{value} == 0) {
+                        push @alt, $Math::Bacovia::ZERO;
                     }
+                    elsif ($first->{value} == 1) {
+                        push @alt, $second;
+                    }
+                    elsif ($first->{value} == -1) {
+                        push @alt, $second->neg;
+                    }
+                }
+
+                elsif (ref($second) eq 'Math::Bacovia::Number') {
+                    if ($second->{value} == 0) {
+                        push @alt, $Math::Bacovia::ZERO;
+                    }
+                    elsif ($second->{value} == 1) {
+                        push @alt, $first;
+                    }
+                    elsif ($second->{value} == -1) {
+                        push @alt, $first->neg;
+                    }
+                }
+
+                my $expr = $first * $second;
+                push @alt, $expr;
+
+                if ($opt{full} and ref($expr) ne __PACKAGE__) {
+                    push @alt, __PACKAGE__->new($first, $second);
                 }
             }
         }

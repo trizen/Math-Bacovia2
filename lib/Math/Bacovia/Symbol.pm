@@ -3,14 +3,16 @@ package Math::Bacovia::Symbol;
 use 5.014;
 use warnings;
 
-use Class::Multimethods;
+use Class::Multimethods qw();
 use parent qw(Math::Bacovia);
+
+our $VERSION = $Math::Bacovia::VERSION;
 
 sub new {
     my ($class, $name, $value) = @_;
 
     if (defined($value)) {
-        Math::Bacovia::Utils::check_type(\$value);
+        Math::Bacovia::_check_type(\$value);
     }
 
     bless {
@@ -55,6 +57,7 @@ sub pretty {
 
 sub stringify {
     my ($x) = @_;
+
     $x->{_str} //= do {
         defined($x->{value})
           ? ("Symbol(\"\Q$x->{name}\E\", " . $x->{value}->stringify() . ")")

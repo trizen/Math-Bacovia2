@@ -6,10 +6,14 @@ use warnings;
 use Class::Multimethods qw();
 use parent qw(Math::Bacovia);
 
+our $VERSION = $Math::Bacovia::VERSION;
+
+my %cache;
+
 sub new {
     my ($class, $value) = @_;
-    Math::Bacovia::Utils::check_type(\$value);
-    bless {value => $value}, $class;
+    Math::Bacovia::_check_type(\$value);
+    $cache{$value->stringify} //= bless {value => $value}, $class;
 }
 
 sub inside {
@@ -29,7 +33,8 @@ Class::Multimethods::multimethod sub => (__PACKAGE__, __PACKAGE__) => sub {
 };
 
 sub neg {
-    __PACKAGE__->new($_[0]->{value}->inv);
+    my ($x) = @_;
+    $x->{_neg} //= __PACKAGE__->new($x->{value}->inv);
 }
 
 #
@@ -37,7 +42,10 @@ sub neg {
 #
 
 Class::Multimethods::multimethod eq => (__PACKAGE__, __PACKAGE__) => sub {
-    $_[0]->{value} == $_[1]->{value};
+    my ($x, $y) = @_;
+
+    (ref($x->{value}) eq ref($y->{value}))
+      && ($x->{value}->eq($y->{value}));
 };
 
 Class::Multimethods::multimethod eq => (__PACKAGE__, '*') => sub {
@@ -49,7 +57,8 @@ Class::Multimethods::multimethod eq => (__PACKAGE__, '*') => sub {
 #
 
 sub numeric {
-    CORE::log($_[0]->{value}->numeric);
+    my ($x) = @_;
+    $x->{_num} //= CORE::log($x->{value}->numeric);
 }
 
 sub pretty {
@@ -65,17 +74,36 @@ sub stringify {
 #
 ## Alternatives
 #
-
 sub alternatives {
-    my ($self) = @_;
+    my ($self, %opt) = @_;
 
     $self->{_alt} //= do {
-        my @alt;
-        foreach my $x ($self->{value}->alternatives) {
-            push @alt, __PACKAGE__->new($x);
 
-            if (ref($x) eq 'Math::Bacovia::Exp') {
-                push @alt, $x->{value};
+        my @alt;
+        foreach my $o ($self->{value}->alternatives(%opt)) {
+
+            push @alt, __PACKAGE__->new($o);
+
+            if (ref($o) eq 'Math::Bacovia::Exp') {
+                push @alt, $o->{value};
+            }
+
+            if ($opt{full}) {
+
+                # Identity: log(a * b) = log(a) + log(b)
+                if (ref($o) eq 'Math::Bacovia::Product') {
+                    push @alt, 'Math::Bacovia::Sum'->new(__PACKAGE__->new($o->{first}), __PACKAGE__->new($o->{second}));
+                }
+
+                # Identity: log(a / b) = log(a) - log(b)
+                if (ref($o) eq 'Math::Bacovia::Fraction') {
+                    push @alt, 'Math::Bacovia::Difference'->new(__PACKAGE__->new($o->{num}), __PACKAGE__->new($o->{den}));
+                }
+
+                # Identity: log(a^b) = log(a) * b
+                #~ if (ref($o) eq 'Math::Bacovia::Power') {
+                #~ push @alt, __PACKAGE__->new($o->{base}) * $o->{power};
+                #~ }
             }
         }
 

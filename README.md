@@ -5,17 +5,8 @@ Math::Bacovia is a symbolic math library, with support for numerical evaluation 
 # EXAMPLE
 
 ```perl
-use utf8;
 use 5.014;
-
-use Math::Bacovia qw(
-    Log
-    Exp
-    Power
-    Symbol
-    Product
-    Fraction
-);
+use Math::Bacovia qw(:all);
 
 my $x = Symbol('x');
 my $y = Symbol('y');
@@ -51,13 +42,13 @@ for my $n (1..3) {
     $prod *= Exp(Fraction(1, $n));
 }
 
-say $prod;                    #=> Product(Product(Product(Product(1, 1), Exp(Fraction(1, 1))), Exp(Fraction(1, 2))), Exp(Fraction(1, 3)))
+say $prod->pretty;            #=> (exp(1) * exp(1/2) * exp(1/3))
 say $prod->simple->pretty;    #=> exp(11/6)
 say $prod->numeric;           #=> 6.25470095193632871640207...
 
 
 say "\n=> Alternative representations:";
-say join ', ', Power(3, 5)->alternatives;   #=> Exp(Product(Log(3), 5)), Power(3, 5)
+say join ', ', Power(3, 5)->alternatives(full => 1);   #=> Power(3, 5), Exp(Product(Log(3), 5)), 243
 ```
 
 
@@ -67,7 +58,11 @@ The types supported by this library are described bellow:
 
 #### # `Symbol(name, value=undef)`
 
-Represents a symbolic value. Optionally, it can have a numeric value.
+Represents a symbolic value. Optionally, it can have a numerical value (or any other value).
+
+#### # `Number(value)`
+
+Represents a numerical value.
 
 #### # `Fraction(numerator, denominator)`
 
@@ -89,13 +84,13 @@ Represents the natural logarithm of a symbolic value.
 
 Represents the natural exponentiation of a symbolic value.
 
-#### # `Sum(a, b)`
+#### # `Sum(a, b, c, ...)`
 
-Represents a symbolic sum.
+Represents a summation of an arbitrary (finite) number of symbolic values.
 
-#### # `Product(a, b)`
+#### # `Product(a, b, c, ...)`
 
-Represents a symbolic product.
+Represents a product of an arbitrary (finite) number of symbolic values.
 
 # SPECIAL METHODS
 
@@ -106,19 +101,56 @@ Bellow we describe the special methods provided by this library:
 
 #### # `alternatives()`
 
-Returns an array with alternative representations from the self-expression.
+Returns a list with alternative representations from the self-expression.
+
+Example:
 
 ```perl
-say for Exp(Log(3) * 2)->alternatives;
+say for Exp(Log(Fraction(1,3)) * 2)->alternatives;
 ```
 
 Output:
 
 ```ruby
-Exp(Product(Log(3), 2))
-Power(3, 2)
-9
+Exp(Product(2, Log(Fraction(1, 3))))
+Power(Fraction(1, 3), 2)
+Exp(Product(2, Log(1/3)))
+Power(1/3, 2)
 ```
+
+The options supported by this method are:
+
+```perl
+    log  => 1,    # will try to generate logarithmic alternatives
+    full => 1,    # will try to generate more alternatives (it may be slow)
+```
+
+The options can be provided as:
+
+```perl
+$obj->alternatives(
+    full => 1,
+    log  => 1,
+);
+```
+
+Example:
+
+```perl
+say for Power(3, 5)->alternatives(full => 1);
+```
+
+Output:
+
+```ruby
+Power(3, 5)
+Exp(Product(Log(3), 5))
+243
+```
+
+**WARNING:** The number of alternative representations grows exponentially! For non-trivial expressions,
+this process may take a very long time and use lots of memory. In combination with the B<full> option
+(set to a true value), the returned list may contain hundreds of even thousands of alternative representations.
 
 #### # `simple()`
 
@@ -130,9 +162,26 @@ say Exp(Log(Log(Exp(Exp(Log(Symbol('x')))))))->simple;
 
 Output:
 
-```ruby
+```perl
 Symbol("x")
 ```
+
+Accepts the same options as the `alternatives()` method.
+
+#### # `expand()`
+
+Returns an expanded version of the self-expression.
+
+```perl
+say Power(Fraction(5, 7), Fraction(1, 3))->expand(full => 1);
+```
+
+Output:
+```perl
+Exp(Product(Log(Fraction(5, 7)), Fraction(1, 3)))
+```
+
+Accepts the same options as the `alternatives()` method.
 
 #### # `pretty()`
 
@@ -149,31 +198,21 @@ Output:
 
 #### # `numeric()`
 
-Evaluates the self-expression numerically and returns the result as a Number or a Complex object.
+Evaluates the self-expression numerically and returns the result as a [Math::AnyNum](https://metacpan.org/release/Math-AnyNum) object.
 
 ```perl
-my $x = Symbol('x');
+my $x = Symbol('x', 13);
 my $expr = ($x**2 - $x + 41);
 
-for my $n (1..3) {
-    local $x->{value} = $n;
-    say $expr->numeric;
-}
-```
-
-Output:
-```ruby
-41
-43
-47
+say $expr->numeric;     #=> 197
 ```
 
 # DEPENDENCIES
 
 Math::Bacovia requires the following modules:
 
-* [Math::AnyNum](https://github.com/trizen/Math-AnyNum)
-* [List::UtilsBy::XS](https://metacpan.org/release/List-UtilsBy-XS)
+* [Math::AnyNum](https://metacpan.org/pod/Math::AnyNum)
+* [List::UtilsBy](https://metacpan.org/pod/List::UtilsBy)
 
 # INSTALLATION
 
@@ -193,15 +232,14 @@ perldoc command.
 
 You can also look for information at:
 
-    AnnoCPAN, Annotated CPAN documentation
-        http://annocpan.org/dist/Math-Bacovia
+* MetaCPAN
+  - https://metacpan.org/pod/Math::Bacovia
 
-    CPAN Ratings
-        http://cpanratings.perl.org/d/Math-Bacovia
+* AnnoCPAN, Annotated CPAN documentation
+  - http://annocpan.org/dist/Math-Bacovia
 
-    Search CPAN
-        http://search.cpan.org/dist/Math-Bacovia/
-
+* CPAN Ratings
+  - http://cpanratings.perl.org/d/Math-Bacovia
 
 # LICENSE AND COPYRIGHT
 

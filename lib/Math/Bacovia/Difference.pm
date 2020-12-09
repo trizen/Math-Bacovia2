@@ -3,30 +3,34 @@ package Math::Bacovia::Difference;
 use 5.014;
 use warnings;
 
-use Class::Multimethods;
+use Class::Multimethods qw();
 use parent qw(Math::Bacovia);
+
+our $VERSION = $Math::Bacovia::VERSION;
+
+my %cache;
 
 sub new {
     my ($class, $minuend, $subtrahend) = @_;
 
     if (defined($minuend)) {
-        Math::Bacovia::Utils::check_type(\$minuend);
+        Math::Bacovia::_check_type(\$minuend);
     }
     else {
         $minuend = $Math::Bacovia::ZERO;
     }
 
     if (defined($subtrahend)) {
-        Math::Bacovia::Utils::check_type(\$subtrahend);
+        Math::Bacovia::_check_type(\$subtrahend);
     }
     else {
         $subtrahend = $Math::Bacovia::ZERO;
     }
 
-    bless {
-           minuend    => $minuend,
-           subtrahend => $subtrahend,
-          }, $class;
+    $cache{join(';', $minuend->stringify, $subtrahend->stringify)} //= bless {
+                                                                              minuend    => $minuend,
+                                                                              subtrahend => $subtrahend,
+                                                                             }, $class;
 }
 
 sub inside {
@@ -110,9 +114,13 @@ Class::Multimethods::multimethod mul => (__PACKAGE__, 'Math::Bacovia::Fraction')
     __PACKAGE__->new($x->{minuend} * $y, $x->{subtrahend} * $y);
 };
 
+#
+## -(a-b) = b-a
+#
+
 sub neg {
     my ($x) = @_;
-    __PACKAGE__->new($x->{subtrahend}, $x->{minuend});
+    $x->{_neg} //= __PACKAGE__->new($x->{subtrahend}, $x->{minuend});
 }
 
 #
@@ -122,8 +130,10 @@ sub neg {
 Class::Multimethods::multimethod eq => (__PACKAGE__, __PACKAGE__) => sub {
     my ($x, $y) = @_;
 
-    ($x->{minuend} == $y->{minuend})
-      && ($x->{subtrahend} == $y->{subtrahend});
+         (ref($x->{minuend}) eq ref($y->{minuend}))
+      && (ref($x->{subtrahend}) eq ref($y->{subtrahend}))
+      && ($x->{minuend}->eq($y->{minuend}))
+      && ($x->{subtrahend}->eq($y->{subtrahend}));
 };
 
 Class::Multimethods::multimethod eq => (__PACKAGE__, '*') => sub {
@@ -136,7 +146,7 @@ Class::Multimethods::multimethod eq => (__PACKAGE__, '*') => sub {
 
 sub numeric {
     my ($x) = @_;
-    $x->{minuend}->numeric - $x->{subtrahend}->numeric;
+    $x->{_num} //= $x->{minuend}->numeric - $x->{subtrahend}->numeric;
 }
 
 sub pretty {
@@ -168,24 +178,36 @@ sub stringify {
 #
 
 sub alternatives {
-    my ($self) = @_;
+    my ($self, %opt) = @_;
 
     $self->{_alt} //= do {
-        my @first  = $self->{minuend}->alternatives;
-        my @second = $self->{subtrahend}->alternatives;
+        my @a_num = $self->{minuend}->alternatives(%opt);
+        my @a_den = $self->{subtrahend}->alternatives(%opt);
 
         my @alt;
-        foreach my $minuend (@first) {
-            foreach my $subtrahend (@second) {
-                if ($subtrahend == $Math::Bacovia::ZERO) {
+        foreach my $minuend (@a_num) {
+            foreach my $subtrahend (@a_den) {
+
+                if (ref($subtrahend) eq 'Math::Bacovia::Number' and $subtrahend->{value} == 0) {
                     push @alt, $minuend;
                 }
-                elsif ($minuend == $Math::Bacovia::ZERO) {
+                elsif (ref($minuend) eq 'Math::Bacovia::Number' and $minuend->{value} == 0) {
                     push @alt, $subtrahend->neg;
                 }
+                elsif (ref($minuend) eq ref($subtrahend) and $minuend->eq($subtrahend)) {
+                    push @alt, $Math::Bacovia::ZERO;
+                }
                 else {
+
                     push @alt, __PACKAGE__->new($minuend, $subtrahend);
-                    ##push @alt, $minuend - $subtrahend;      # better, but slower...
+
+                    if ($opt{full}) {
+                        push @alt, $minuend - $subtrahend;
+                    }
+                    elsif (    ref($minuend) eq 'Math::Bacovia::Number'
+                           and ref($subtrahend) eq 'Math::Bacovia::Number') {
+                        push @alt, $minuend - $subtrahend;
+                    }
                 }
             }
         }

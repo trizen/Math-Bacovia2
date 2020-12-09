@@ -6,10 +6,14 @@ use warnings;
 use Class::Multimethods qw();
 use parent qw(Math::Bacovia);
 
+our $VERSION = $Math::Bacovia::VERSION;
+
+my %cache;
+
 sub new {
     my ($class, $value) = @_;
-    Math::Bacovia::Utils::check_type(\$value);
-    bless {value => $value}, $class;
+    Math::Bacovia::_check_type(\$value);
+    $cache{$value->stringify} //= bless {value => $value}, $class;
 }
 
 sub inside {
@@ -30,14 +34,14 @@ Class::Multimethods::multimethod div => (__PACKAGE__, __PACKAGE__) => sub {
     __PACKAGE__->new($x->{value} - $y->{value});
 };
 
-Class::Multimethods::multimethod pow => (__PACKAGE__, 'Math::Bacovia') => sub {
-    my ($x, $y) = @_;
-    __PACKAGE__->new($x->{value} * $y);
-};
+#~ Class::Multimethods::multimethod pow => (__PACKAGE__, 'Math::Bacovia') => sub {
+#~ my ($x, $y) = @_;
+#~ __PACKAGE__->new($x->{value} * $y);
+#~ };
 
 sub inv {
     my ($x) = @_;
-    __PACKAGE__->new($x->{value}->neg);
+    $x->{_inv} //= __PACKAGE__->new($x->{value}->neg);
 }
 
 #
@@ -46,7 +50,9 @@ sub inv {
 
 Class::Multimethods::multimethod eq => (__PACKAGE__, __PACKAGE__) => sub {
     my ($x, $y) = @_;
-    $x->{value} == $y->{value};
+
+    (ref($x->{value}) eq ref($y->{value}))
+      && ($x->{value}->eq($y->{value}));
 };
 
 Class::Multimethods::multimethod eq => (__PACKAGE__, '*') => sub {
@@ -58,7 +64,8 @@ Class::Multimethods::multimethod eq => (__PACKAGE__, '*') => sub {
 #
 
 sub numeric {
-    CORE::exp($_[0]->{value}->numeric);
+    my ($x) = @_;
+    $x->{_num} //= CORE::exp($x->{value}->numeric);
 }
 
 sub pretty {
@@ -74,30 +81,55 @@ sub stringify {
 #
 ## Alternatives
 #
-
 sub alternatives {
-    my ($self) = @_;
+    my ($self, %opt) = @_;
 
     $self->{_alt} //= do {
-        my @a;
-        foreach my $a ($self->{value}->alternatives) {
-            push @a, __PACKAGE__->new($a);
 
-            if (ref($a) eq 'Math::Bacovia::Product') {
-                my ($x, $y) = $a->inside;
+        my @alt;
+        foreach my $o ($self->{value}->alternatives(%opt)) {
+
+            push @alt, __PACKAGE__->new($o);
+
+            # Identity: exp(log(x) * y) = x^y
+            if (ref($o) eq 'Math::Bacovia::Product') {
+                my ($x, $y) = @{$o}{qw(first second)};
+
                 if (ref($x) eq 'Math::Bacovia::Log') {
-                    push @a, 'Math::Bacovia::Power'->new($x->{value}, $y);
+                    push @alt, 'Math::Bacovia::Power'->new($x->{value}, $y);
                 }
                 elsif (ref($y) eq 'Math::Bacovia::Log') {
-                    push @a, 'Math::Bacovia::Power'->new($y->{value}, $x);
+                    push @alt, 'Math::Bacovia::Power'->new($y->{value}, $x);
                 }
             }
-            elsif (ref($a) eq 'Math::Bacovia::Log') {
-                push @a, $a->{value};
+
+            # Identity: exp(log(x)) = x
+            elsif (ref($o) eq 'Math::Bacovia::Log') {
+                push @alt, $o->{value};
+            }
+
+            if ($opt{full}) {
+
+                # Identity: exp(a + b) = exp(a) * exp(b)
+                if (ref($o) eq 'Math::Bacovia::Sum') {
+                    push @alt, 'Math::Bacovia::Product'->new(__PACKAGE__->new($o->{first}), __PACKAGE__->new($o->{second}));
+                }
+
+                # Identity: exp(a/b) = exp(a)^(1/b)
+                #~ if (ref($o) eq 'Math::Bacovia::Fraction') {
+                #~ push @alt, (__PACKAGE__->new($o->{num}) ** $o->{den}->inv)->alternatives(%opt);
+                #~ }
+
+#<<<
+                # Identity: exp(a - b) = exp(a) / exp(b)
+                if (ref($o) eq 'Math::Bacovia::Difference') {
+                    push @alt, 'Math::Bacovia::Fraction'->new(__PACKAGE__->new($o->{minuend}), __PACKAGE__->new($o->{subtrahend}));
+                }
+#>>>
             }
         }
 
-        [List::UtilsBy::uniq_by { $_->stringify } @a];
+        [List::UtilsBy::uniq_by { $_->stringify } @alt];
     };
 
     @{$self->{_alt}};
